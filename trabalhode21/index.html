@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Blackjack 21</title>
+  <meta name="description" content="Jogo de Blackjack (21) no navegador — versão web de um projeto acadêmico feito originalmente em Python/Pygame.">
+  <meta name="theme-color" content="#07110c">
+  <meta property="og:title" content="Blackjack 21">
+  <meta property="og:description" content="Jogue Blackjack direto no navegador. Projeto educacional, sem apostas.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,700;1,800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Símbolos SVG reutilizados pelas cartas (naipes e ornamentos) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="naipe-copas" viewBox="0 0 100 100">
+        <path fill="currentColor" d="M50 90C22 68 4 50 4 30 4 15 15 5 28 5c10 0 18 6 22 15 4-9 12-15 22-15 13 0 24 10 24 25 0 20-18 38-46 60z"/>
+      </symbol>
+      <symbol id="naipe-ouros" viewBox="0 0 100 100">
+        <path fill="currentColor" d="M50 3Q68 30 88 50 68 70 50 97 32 70 12 50 32 30 50 3z"/>
+      </symbol>
+      <symbol id="naipe-espadas" viewBox="0 0 100 100">
+        <path fill="currentColor" d="M50 4c12 20 46 36 46 57 0 14-11 23-23 23-9 0-16-4-20-11 1 9 5 17 13 23H34c8-6 12-14 13-23-4 7-11 11-20 11C15 84 4 75 4 61 4 40 38 24 50 4z"/>
+      </symbol>
+      <symbol id="naipe-paus" viewBox="0 0 100 100">
+        <g fill="currentColor">
+          <circle cx="50" cy="27" r="21"/>
+          <circle cx="27" cy="58" r="21"/>
+          <circle cx="73" cy="58" r="21"/>
+          <path d="M38 40h24v24H38z"/>
+          <path d="M46 55c0 18-5 30-14 41h36c-9-11-14-23-14-41z"/>
+        </g>
+      </symbol>
+      <symbol id="orn-coroa" viewBox="0 0 100 60">
+        <path fill="currentColor" d="M8 50 14 12l20 22L50 4l16 30 20-22 6 38z"/>
+        <rect fill="currentColor" x="8" y="52" width="84" height="7" rx="2"/>
+      </symbol>
+      <symbol id="orn-estrela" viewBox="0 0 100 60">
+        <path fill="currentColor" d="M50 2l7 19 20 1-16 12 6 20-17-12-17 12 6-20-16-12 20-1z"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <div class="ambiente" aria-hidden="true"></div>
+
+  <!-- ===================== CABEÇALHO ===================== -->
+  <header class="topo">
+    <div class="marca">
+      <span class="marca-ficha" aria-hidden="true">21</span>
+      <h1>Blackjack <span>21</span></h1>
+    </div>
+
+    <div class="status" id="status" data-estado="distribuindo" role="status" aria-live="polite">
+      <span class="status-ponto" aria-hidden="true"></span>
+      <span id="statusTexto">Embaralhando…</span>
+    </div>
+
+    <div class="topo-acoes">
+      <button class="botao-icone" id="btnSom" type="button" aria-pressed="true" aria-label="Som ativado. Clique para desativar" title="Som (M)">
+        <svg class="icone-som-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <svg class="icone-som-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16.5 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <button class="botao-icone" id="btnAjuda" type="button" aria-label="Como jogar" title="Como jogar">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.8-2.5 2.2-2.5 3.9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17.2" r="1.2" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===================== ÁREA PRINCIPAL ===================== -->
+  <main class="layout">
+    <section class="mesa-area" aria-label="Mesa de jogo">
+      <div class="mesa">
+        <div class="feltro" id="feltro">
+
+          <!-- Sapato (de onde as cartas saem) -->
+          <div class="sapato" id="sapato" aria-hidden="true">
+            <div class="sapato-pilha"></div>
+            <span class="sapato-contagem"><span id="contagemBaralho">52</span> cartas</span>
+          </div>
+
+          <!-- Dealer -->
+          <div class="lugar lugar-dealer" id="lugarDealer">
+            <div class="lugar-cabecalho">
+              <h2>Dealer</h2>
+              <span class="placar-mao" id="pontosDealer" aria-label="Pontos do dealer: oculto">?</span>
+            </div>
+            <div class="mao" id="maoDealer" aria-label="Cartas do dealer"></div>
+          </div>
+
+          <!-- Centro da mesa: estampa do feltro ou resultado da rodada -->
+          <div class="centro-mesa">
+            <div class="estampa" aria-hidden="true">
+              <svg viewBox="0 0 640 140" preserveAspectRatio="xMidYMid meet">
+                <path id="arcoTexto" d="M60 66Q320 150 580 66" fill="none"/>
+                <text class="estampa-titulo" x="320" y="46" text-anchor="middle">BLACKJACK</text>
+                <text class="estampa-arco"><textPath href="#arcoTexto" startOffset="50%" text-anchor="middle">O DEALER COMPRA ATÉ 16 E PARA EM 17</textPath></text>
+              </svg>
+            </div>
+
+            <div class="resultado" id="resultado" data-tipo="" hidden aria-live="assertive">
+              <p class="resultado-selo" id="resultadoSelo">Vitória</p>
+              <p class="resultado-mensagem" id="resultadoMensagem"></p>
+              <p class="resultado-placar" id="resultadoPlacar"></p>
+              <button class="botao botao-ouro botao-pequeno" id="btnJogarNovamente" type="button">Jogar novamente</button>
+            </div>
+          </div>
+
+          <!-- Jogador -->
+          <div class="lugar lugar-jogador" id="lugarJogador">
+            <div class="mao" id="maoJogador" aria-label="Suas cartas"></div>
+            <div class="lugar-cabecalho">
+              <h2>Você</h2>
+              <span class="placar-mao" id="pontosJogador" aria-label="Seus pontos: 0">0</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Controles -->
+      <div class="controles" role="group" aria-label="Ações do jogo">
+        <button class="botao botao-ouro" id="btnPedir" type="button" disabled>
+          <span>Pedir carta</span><kbd aria-hidden="true">H</kbd>
+        </button>
+        <button class="botao botao-vinho" id="btnParar" type="button" disabled>
+          <span>Parar</span><kbd aria-hidden="true">S</kbd>
+        </button>
+        <button class="botao botao-vidro" id="btnNovo" type="button" disabled>
+          <span>Novo jogo</span><kbd aria-hidden="true">N</kbd>
+        </button>
+      </div>
+    </section>
+
+    <!-- Estatísticas -->
+    <aside class="painel" aria-labelledby="tituloEstatisticas">
+      <h2 id="tituloEstatisticas">Estatísticas</h2>
+
+      <div class="taxa" id="taxa" style="--taxa: 0">
+        <div class="taxa-anel">
+          <span class="taxa-valor" id="statTaxa">0%</span>
+        </div>
+        <span class="taxa-rotulo">de vitórias</span>
+      </div>
+
+      <dl class="numeros">
+        <div class="numero numero-vitoria"><dt>Vitórias</dt><dd id="statVitorias">0</dd></div>
+        <div class="numero numero-derrota"><dt>Derrotas</dt><dd id="statDerrotas">0</dd></div>
+        <div class="numero numero-empate"><dt>Empates</dt><dd id="statEmpates">0</dd></div>
+        <div class="numero numero-total"><dt>Partidas</dt><dd id="statPartidas">0</dd></div>
+      </dl>
+
+      <button class="botao-texto" id="btnLimpar" type="button">Limpar estatísticas</button>
+    </aside>
+  </main>
+
+  <!-- ===================== RODAPÉ ===================== -->
+  <footer class="rodape">
+    <p><strong>Blackjack 21</strong> — versão web do projeto original em Python/Pygame.</p>
+    <!-- EDITE AQUI: curso, instituição e integrantes do grupo -->
+    <p class="rodape-academico">Análise e Desenvolvimento de Sistemas · UNIVC · Grupo: Gusthavo Scopel, Luka Maciel, Andre Monteiro e Alexandre.</p>
+  </footer>
+
+  <!-- ===================== MODAIS ===================== -->
+  <dialog class="modal" id="dlgBoasVindas" aria-labelledby="tituloBoasVindas">
+    <div class="modal-corpo">
+      <span class="modal-ficha" aria-hidden="true">21</span>
+      <h2 id="tituloBoasVindas">Bem-vindo à mesa!</h2>
+      <p>O objetivo é chegar mais perto de <strong>21 pontos</strong> que o dealer, sem passar disso.</p>
+      <p>Peça cartas com <kbd>H</kbd>, pare com <kbd>S</kbd> e comece uma nova rodada com <kbd>N</kbd> — ou use os botões.</p>
+      <div class="modal-acoes">
+        <button class="botao botao-vidro botao-pequeno" type="button" data-abrir-ajuda>Ver regras</button>
+        <button class="botao botao-ouro botao-pequeno" type="button" data-fechar autofocus>Começar a jogar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="modal modal-largo" id="dlgAjuda" aria-labelledby="tituloAjuda">
+    <div class="modal-corpo">
+      <button class="modal-x" type="button" data-fechar aria-label="Fechar">×</button>
+      <h2 id="tituloAjuda">Como jogar</h2>
+
+      <h3>Objetivo</h3>
+      <p>Terminar a rodada com mais pontos que o dealer, sem ultrapassar 21.</p>
+
+      <h3>Valor das cartas</h3>
+      <ul>
+        <li><strong>2 a 10</strong> valem o próprio número.</li>
+        <li><strong>J, Q e K</strong> valem 10.</li>
+        <li><strong>Ás</strong> vale 11, ou 1 quando 11 faria a mão passar de 21.</li>
+      </ul>
+
+      <h3>A rodada</h3>
+      <ol>
+        <li>Você e o dealer recebem 2 cartas. Uma carta do dealer fica virada.</li>
+        <li><strong>Pedir carta</strong> adiciona uma carta à sua mão. Passou de 21? Você estourou e perde.</li>
+        <li><strong>Parar</strong> encerra seu turno. O dealer revela a carta e compra até ter 17 ou mais.</li>
+        <li>Se o dealer passar de 21, você vence. Senão, ganha quem tiver mais pontos. Pontos iguais = empate.</li>
+        <li>Se você recebe 21 nas duas primeiras cartas, é <strong>Blackjack</strong> e vence na hora (empata se o dealer também tiver 21).</li>
+        <li>Chegou a 21 pedindo cartas? Seu turno termina automaticamente.</li>
+      </ol>
+
+      <h3>Atalhos de teclado</h3>
+      <p><kbd>H</kbd> pedir carta · <kbd>S</kbd> parar · <kbd>N</kbd> novo jogo · <kbd>M</kbd> som · <kbd>Esc</kbd> fecha esta janela</p>
+
+      <p class="modal-nota">As estatísticas ficam salvas apenas neste navegador. Este é um projeto educacional, sem apostas.</p>
+    </div>
+  </dialog>
+
+  <dialog class="modal" id="dlgConfirmar" aria-labelledby="tituloConfirmar">
+    <div class="modal-corpo">
+      <h2 id="tituloConfirmar">Limpar estatísticas?</h2>
+      <p>Vitórias, derrotas e empates voltam para zero. Isso não pode ser desfeito.</p>
+      <div class="modal-acoes">
+        <button class="botao botao-vidro botao-pequeno" type="button" data-fechar>Cancelar</button>
+        <button class="botao botao-vinho botao-pequeno" type="button" id="btnConfirmarLimpar">Limpar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="confete" id="confete" aria-hidden="true"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
